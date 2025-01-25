@@ -85,7 +85,7 @@ export default function ResultPage() {
     <div className="container mx-auto p-4 space-y-4 w-screen justify-center items-center flex flex-col">
       <Card className="w-fit">
         <CardHeader>
-          <CardTitle className="text-center">Level Complete!</CardTitle>
+          <CardTitle className="text-center">Level {result.status}</CardTitle>
           {result.status === "won" && (
             <div className="flex justify-center gap-1">
               {[1, 2, 3].map((starIndex) => (
