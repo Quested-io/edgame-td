@@ -15,6 +15,11 @@ export const getLevelBasedOnUsage = (
 };
 
 export const getStarBasedOnScore = (score: number, level: Level) => {
+
+  if (!level.starScoreRequirements) {
+    return 2;
+  }
+
   for (const [star, requirement] of Object.entries(
     level.starScoreRequirements
   )) {

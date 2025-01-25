@@ -27,7 +27,7 @@ export function useWaveSystem({
 }: UseWaveSystemProps) {
   const [waveState, setWaveState] = useState<WaveState>({
     currentWave: 1,
-    isPreWave: false,
+    isPreWave: true,
     activationWords: new Map(),
     preWaveTimer: WAVE_PREVIEW_TIME,
     isFirstWave: true,
@@ -94,6 +94,7 @@ export function useWaveSystem({
     if (waveState.currentWave === 1 && waveState.activationWords.size === 0) {
       setWaveState((prev) => ({
         ...prev,
+        isPreWave: true,
         activationWords: generateActivationWords(),
       }));
     }
