@@ -122,20 +122,6 @@ const useGameStore = create<GameStore>((set) => ({
         console.error(err);
         set({ inventory: DefaultInventory });
       });
-    // instance.api.player
-    //   .getGameProperty("stats")
-    //   .then((stats): void => {
-    //     console.log("Stats: ", stats);
-    //     if (!stats) {
-    //       set({ stats: DefaultStats });
-    //       return
-    //     }
-    //     set({ stats: JSON.parse(stats) });
-    //   })
-    //   .catch((err) => {
-    //     console.error(err);
-    //     set({ stats: DefaultStats });
-    //   });
   },
 }));
 
