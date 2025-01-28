@@ -1,261 +1,113 @@
-import { useState, useCallback, useEffect } from "react";
-import { RoundState, Level } from "@/types/game.ts";
-import { useWaveSystem } from "./useWaveSystem.ts";
-import { spawnWord } from "@/lib/wordUtils.ts";
-import { IPlayerTower } from "@/store/gameStore.ts";
-import { allTowers } from "@/data/allTowers.ts";
-import { applyTowerAbility, ABILITY_DURATION } from "@/lib/towerAbilities.ts";
+import { useState, useEffect, useCallback } from 'react';
+import { Level, GameState } from '@/types/game';
 
 interface UseGameLogicProps {
   level: Level;
-  equippedTowers?: IPlayerTower[];
   onGameOver?: (result: {
     score: number;
     timeTaken: number;
-    status: string;
+    foundWords: string[];
+    totalWords: number;
   }) => void;
 }
 
-const initialGameState = (
-  level: Level,
-  equippedTowers: IPlayerTower[] = []
-): RoundState => ({
-  lives: level.lives,
-  score: 0,
-  activeWords: [],
-  status: "preWave",
-  activeTowers: equippedTowers.map((tower) => ({
-    ...tower,
-    isActive: false,
-    cooldownEnds: null,
-  })),
-  hasShield: false,
-});
+function getLetterCounts(words: string[]): Map<string, number> {
+  const letterCounts = new Map<string, number>();
+  const allLetters = words.join('').toLowerCase().split('');
 
-export function useGameLogic({
-  level,
-  equippedTowers = [],
-  onGameOver,
-}: UseGameLogicProps) {
-  const [gameState, setGameState] = useState<RoundState>(
-    initialGameState(level, equippedTowers)
-  );
-  const [input, setInput] = useState("");
-  const [startTime] = useState(Date.now());
-  const [wordsSpawned, setWordsSpawned] = useState(0);
-
-  const { waveState, startWave, completeWave } = useWaveSystem({
-    totalWaves: level.totalWaves,
-    equippedTowers: gameState.activeTowers,
-    onWaveComplete: () => {
-      setWordsSpawned(0);
-    },
-    onGameComplete: () => {
-      if (onGameOver) {
-        onGameOver({
-          score: gameState.score,
-          timeTaken: Date.now() - startTime,
-          status: "won",
-        });
-      }
-    },
+  allLetters.forEach(letter => {
+    letterCounts.set(letter, (letterCounts.get(letter) || 0) + 1);
   });
 
-  const togglePause = useCallback(() => {
-    setGameState((prev) => ({
-      ...prev,
-      status: prev.status === "playing" ? "paused" : "playing",
-    }));
-  }, []);
+  return letterCounts;
+}
 
-  // Handle pre-wave to wave transition
-  useEffect(() => {
-    if (!waveState.isPreWave) {
-      setGameState((prev) => ({ ...prev, status: "playing" }));
-      startWave();
+export function useGameLogic({ level, onGameOver }: UseGameLogicProps) {
+  const [input, setInput] = useState('');
+  const [gameState, setGameState] = useState<GameState>(() => ({
+    letterCounts: getLetterCounts(level.words),
+    foundWords: [],
+    timeRemaining: level.timeLimit,
+    status: 'playing',
+    score: 0
+  }));
+
+  // Check if word can be formed from available letters
+  const canFormWord = useCallback((word: string): boolean => {
+    const availableLetters = new Map(gameState.letterCounts);
+
+    for (const letter of word.toLowerCase()) {
+      const count = availableLetters.get(letter) || 0;
+      if (count === 0) return false;
+      availableLetters.set(letter, count - 1);
     }
-  }, [
-    waveState.preWaveTimer,
-    gameState.status,
-    startWave,
-    waveState.isPreWave,
-  ]);
 
-  const handleInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (gameState.status !== "playing") return;
+    return true;
+  }, [gameState.letterCounts]);
 
-      const value = e.target.value.toLowerCase();
-      setInput(value);
+  const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (gameState.status !== 'playing') return;
 
-      // Check for tower activation
-      const activeTower = gameState.activeTowers.find((tower) => {
-        const activationWord = waveState.activationWords.get(tower.towerId);
-        return (
-          activationWord === value &&
-          (!tower.cooldownEnds || Date.now() > tower.cooldownEnds)
-        );
+    const value = e.target.value.toLowerCase();
+    setInput(value);
+
+    // Check if the word is valid and can be formed
+    if (level.words.includes(value) &&
+      !gameState.foundWords.includes(value) &&
+      canFormWord(value)) {
+      // Remove used letters
+      const newLetterCounts = new Map(gameState.letterCounts);
+      value.split('').forEach(letter => {
+        const currentCount = newLetterCounts.get(letter) || 0;
+        if (currentCount > 1) {
+          newLetterCounts.set(letter, currentCount - 1);
+        } else {
+          newLetterCounts.delete(letter);
+        }
       });
 
-      if (activeTower) {
-        const tower = allTowers.find((t) => t.id === activeTower.towerId);
-        if (!tower) return;
-
-        setInput("");
-
-        // Apply tower ability
-        const abilityEffect = applyTowerAbility(
-          activeTower,
-          gameState,
-          level.lanes
-        );
-
-        setGameState((prev) => ({
-          ...prev,
-          activeTowers: prev.activeTowers.map((t) =>
-            t.towerId === activeTower.towerId
-              ? {
-                  ...t,
-                  isActive: true,
-                  cooldownEnds: Date.now() + tower.cooldown,
-                }
-              : t
-          ),
-          activeWords: abilityEffect.activeWords,
-          lives: abilityEffect.lives,
-          hasShield: abilityEffect.hasShield,
-        }));
-
-        // Reset effects after duration
-        setTimeout(() => {
-          setGameState((prev) => ({
-            ...prev,
-            activeTowers: prev.activeTowers.map((t) =>
-              t.towerId === activeTower.towerId ? { ...t, isActive: false } : t
-            ),
-            activeWords: prev.activeWords.map((word) => ({
-              ...word,
-              speed: word.originalSpeed,
-            })),
-          }));
-        }, ABILITY_DURATION);
-        return;
-      }
-
-      // Check for word matches
-      const matchedWord = gameState.activeWords.find((w) => w.word === value);
-      if (matchedWord) {
-        setInput("");
-        setGameState((prev) => ({
-          ...prev,
-          score:
-            prev.score + Math.floor((100 - matchedWord.position) * level.speed),
-          activeWords: prev.activeWords.filter((w) => w.id !== matchedWord.id),
-        }));
-      }
-    },
-    [
-      gameState.activeTowers,
-      gameState.activeWords,
-      waveState.activationWords,
-      gameState.status,
-      level.speed,
-      level.lanes,
-    ]
-  );
-
-  // Spawn words during wave
-  useEffect(() => {
-    if (gameState.status !== "playing") return;
-    if (wordsSpawned >= level.wordsPerWave) return;
-    if (waveState.isPreWave) return;
-
-    const spawnInterval = setInterval(() => {
-      setGameState((prev) => ({
+      setGameState(prev => ({
         ...prev,
-        activeWords: [
-          ...prev.activeWords,
-          spawnWord(level.words, level.speed, level.lanes),
-        ],
+        foundWords: [...prev.foundWords, value],
+        score: prev.score + (value.length * 100),
+        letterCounts: newLetterCounts
       }));
-      setWordsSpawned((prev) => prev + 1);
-    }, 2000);
+      setInput('');
+    }
+  }, [gameState.status, gameState.foundWords, gameState.letterCounts, level.words, canFormWord]);
 
-    return () => clearInterval(spawnInterval);
-  }, [gameState.status, wordsSpawned, waveState.isPreWave]);
-
-  // Game loop effect
+  // Timer effect
   useEffect(() => {
-    if (gameState.status !== "playing") return;
+    if (gameState.status !== 'playing') return;
 
-    const gameLoop = setInterval(() => {
-      setGameState((prev) => {
-        const newWords = prev.activeWords.map((word) => ({
-          ...word,
-          position: word.position + word.speed / 100,
-        }));
+    const timer = setInterval(() => {
+      setGameState(prev => {
+        const newTime = prev.timeRemaining - 1;
 
-        const reachedEnd = newWords.some((word) => word.position >= 100);
-
-        if (reachedEnd) {
-          // If we have a shield, use it instead of losing a life
-          if (prev.hasShield) {
-            return {
-              ...prev,
-              hasShield: false,
-              activeWords: newWords.filter((word) => word.position < 100),
-            };
-          }
-
-          const newLives = prev.lives - 1;
-          if (newLives <= 0 && onGameOver) {
+        if (newTime <= 0 || prev.foundWords.length === level.words.length) {
+          clearInterval(timer);
+          if (onGameOver) {
             onGameOver({
               score: prev.score,
-              timeTaken: Date.now() - startTime,
-              status: "lost",
+              timeTaken: level.timeLimit - newTime,
+              foundWords: prev.foundWords,
+              totalWords: level.words.length
             });
           }
-          return {
-            ...prev,
-            lives: newLives,
-            activeWords: newWords.filter((word) => word.position < 100),
-            status: newLives <= 0 ? "gameOver" : prev.status,
-          };
+          return { ...prev, timeRemaining: Math.max(0, newTime), status: 'gameOver' };
         }
 
-        // Check if wave is complete
-        if (newWords.length === 0 && wordsSpawned >= level.wordsPerWave) {
-          completeWave(waveState.currentWave);
-          return {
-            ...prev,
-            activeWords: [],
-          };
-        }
-
-        return {
-          ...prev,
-          activeWords: newWords,
-        };
+        return { ...prev, timeRemaining: newTime };
       });
-    }, 5);
+    }, 1000);
 
-    return () => clearInterval(gameLoop);
-  }, [
-    gameState.status,
-    onGameOver,
-    startTime,
-    wordsSpawned,
-    level.wordsPerWave,
-    completeWave,
-    waveState.currentWave,
-  ]);
+    return () => clearInterval(timer);
+  }, [gameState.status, level.timeLimit, level.words.length, onGameOver]);
 
   return {
     gameState,
-    waveState,
     input,
     handleInput,
-    startWave,
-    togglePause,
+    remainingWords: level.words.filter(word => !gameState.foundWords.includes(word))
   };
 }

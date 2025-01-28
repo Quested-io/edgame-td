@@ -1,109 +1,62 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button.tsx";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
   CardFooter,
-} from "@/components/ui/card.tsx";
-import {
-  Trophy,
-  Timer,
-  Target,
-  ArrowLeft,
-  RotateCcw,
-  Lock,
-  Star,
-  StarOff,
-} from "lucide-react";
+} from "@/components/ui/card";
+import { Star, StarOff, Timer, Trophy, Book } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { instance } from "@quested/sdk";
-import useGameStore from "@/store/gameStore.ts";
-import { allTowers } from "@/data/allTowers.ts";
-import * as Icons from "lucide-react";
-import { ACTIVITY_ID } from "@/data/constants.ts";
-import {getStarBasedOnScore} from "@/lib/gameUtils.ts";
+import { Badge } from "@/components/ui/badge";
 
 export default function ResultPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const result = useMemo(() => {
-    return location.state;
-  }, [location.state]);
-  const { unlockTower, saveLevelResult } = useGameStore();
-  // TODO: Handle abilities of towers
-  // TODO: Finish infinite mode
-  // TODO: Finish Custom mode and preview
+  const result = location.state;
 
-  const formatTime = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}:${(seconds % 60).toString().padStart(2, "0")}`;
-  };
-
-  useEffect(() => {
-    if (!instance.isInitialized || !result) return;
-    instance.api.player.trackEvent("event:activityEnded", result);
+  const stars = useMemo(() => {
+    if (!result?.score || !result?.config?.starScoreRequirements) return 0;
+    const reqs = result.config.starScoreRequirements;
+    if (result.score >= reqs[3]) return 3;
+    if (result.score >= reqs[2]) return 2;
+    if (result.score >= reqs[1]) return 1;
+    return 0;
   }, [result]);
-
-  useEffect(() => {
-    if (result[`${ACTIVITY_ID}:config`].unlocks && result.status === "won") {
-      unlockTower(result[`${ACTIVITY_ID}:config`].unlocks);
-    }
-  }, [result, unlockTower]);
-
-  useEffect(() => {
-    console.log("Result: ", result);
-    if (result.status === "won" && result[`${ACTIVITY_ID}:config`].id) {
-      saveLevelResult(result[`${ACTIVITY_ID}:config`].id, result.score);
-    }
-  }, [result, saveLevelResult]);
-
-  const unlockedTower = useMemo(() => {
-    if (result[`${ACTIVITY_ID}:config`].unlocks) {
-      return allTowers.find(
-        (t) => t.id === result[`${ACTIVITY_ID}:config`].unlocks
-      );
-    }
-    return null;
-  }, [result]);
-
-  const UnlockedTowerIcon = useMemo(() => {
-    if (!unlockedTower) return null;
-    return Icons[unlockedTower?.icon as keyof typeof Icons];
-  }, [unlockedTower]);
-
-  const stars = getStarBasedOnScore(result.score, result[`${ACTIVITY_ID}:config`]);
 
   if (!result) {
-    navigate("/levels");
+    navigate("/configure");
     return null;
   }
 
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-4 w-screen justify-center items-center flex flex-col">
-      <Card className="w-fit">
+      <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle className="text-center">Level {result.status}</CardTitle>
-          {result.status === "won" && (
-            <div className="flex justify-center gap-1">
-              {[1, 2, 3].map((starIndex) => (
-                <div
-                  key={starIndex}
-                  className={`transition-all duration-300 ${
-                    starIndex <= stars ? "text-yellow-400" : "text-gray-300"
-                  }`}
-                >
-                  {starIndex <= stars ? (
-                    <Star className="w-6 h-6 fill-current" />
-                  ) : (
-                    <StarOff className="w-6 h-6" />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          <CardTitle className="text-center">Level Complete!</CardTitle>
+          <div className="flex justify-center gap-1">
+            {[1, 2, 3].map((starIndex) => (
+              <div
+                key={starIndex}
+                className={`transition-all duration-300 ${
+                  starIndex <= stars ? "text-yellow-400" : "text-gray-300"
+                }`}
+              >
+                {starIndex <= stars ? (
+                  <Star className="w-8 h-8 fill-current" />
+                ) : (
+                  <StarOff className="w-8 h-8" />
+                )}
+              </div>
+            ))}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-2 bg-muted rounded">
@@ -124,59 +77,43 @@ export default function ResultPage() {
 
           <div className="flex items-center justify-between p-2 bg-muted rounded">
             <div className="flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              <span>Status</span>
+              <Book className="w-5 h-5" />
+              <span>Words Found</span>
             </div>
-            <span className="font-bold capitalize">{result.status}</span>
+            <span className="font-bold">{result.foundWords.length} / {result.totalWords}</span>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-semibold">Found Words</h3>
+            <div className="flex flex-wrap gap-2">
+              {result.foundWords.map((word: string, index: number) => (
+                <Badge key={index} variant="secondary">
+                  {word}
+                </Badge>
+              ))}
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex gap-2">
           <Button
             variant="outline"
             className="flex-1"
-            onClick={() => navigate("/levels")}
+            onClick={() => navigate("/configure")}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Levels
+            New Level
           </Button>
           <Button
             className="flex-1"
             onClick={() =>
               navigate(
-                `/game?config=${JSON.stringify(result[`${ACTIVITY_ID}:config`])}`
+                `/game?config=${JSON.stringify(result.config)}`
               )
             }
           >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Retry
+            Try Again
           </Button>
         </CardFooter>
       </Card>
-
-      {result[`${ACTIVITY_ID}:config`].unlocks && unlockedTower && result.status === "won" && (
-        <Card className="w-fit">
-          <CardHeader>
-            <CardTitle className="text-center flex items-center gap-2 justify-center">
-              <Lock className="w-5 h-5" />
-              New Tower Unlocked!
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="p-4 bg-muted rounded flex items-center gap-4">
-              <div className="w-16 h-16 bg-primary/20 rounded flex items-center justify-center">
-                {/*@ts-expect-error ts is not recognizing dynamic icons*/}
-                <UnlockedTowerIcon className="w-8 h-8" />
-              </div>
-              <div>
-                <h3 className="font-bold capitalize">{unlockedTower?.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {unlockedTower?.description}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
