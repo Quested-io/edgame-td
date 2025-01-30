@@ -71,7 +71,7 @@ export default function GameBoard({ gameState, lanes }: GameBoardProps) {
             style={{
               left: `${word.position}%`,
               top: `${(word.lane * 100) / lanes + 50 / lanes}%`,
-              transform: "translate(-50%, -50%)",
+              transform: "translateY(-50%)",
               transition: "left 0.1s linear",
             }}
           >
