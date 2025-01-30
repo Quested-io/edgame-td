@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import GameBoard from '@/components/game/GameBoard.tsx';
 import PreWaveOverlay from '@/components/game/PreWaveOverlay.tsx';
@@ -15,6 +15,7 @@ export default function GamePage() {
   const level = config ? JSON.parse(config) : null;
   const navigate = useNavigate();
   const { inventory } = useGameStore();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const equippedTowers = useMemo(
     () => inventory?.towers?.filter((t) => t.isUnlocked),
@@ -33,6 +34,16 @@ export default function GamePage() {
       });
     },
   });
+
+  useEffect(() => {
+    if (!waveState.isPreWave && inputRef.current) {
+      const timer = setTimeout(() => {
+        inputRef?.current?.focus();
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [waveState.isPreWave]);
 
   if (!level) {
     return (
@@ -64,6 +75,7 @@ export default function GamePage() {
 
         <div className="space-y-4">
           <Input
+            ref={inputRef}
             value={input}
             onChange={handleInput}
             placeholder="Type the words..."
