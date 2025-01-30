@@ -192,7 +192,7 @@ export function useGameLogic({
       setGameState((prev) => {
         const newWords = prev.activeWords.map((word) => ({
           ...word,
-          position: word.position + word.speed / 100,
+          position: word.position + Math.sqrt(word.speed) / 100,
         }));
 
         const reachedEnd = newWords.some((word) => word.position >= 100);
