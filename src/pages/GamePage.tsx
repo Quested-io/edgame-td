@@ -1,31 +1,32 @@
-import { useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import GameBoard from "@/components/game/GameBoard.tsx";
-import PreWaveOverlay from "@/components/game/PreWaveOverlay.tsx";
-import { Button } from "@/components/ui/button.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { Heart } from "lucide-react";
-import { useGameLogic } from "@/hooks/useGameLogic.ts";
-import useGameStore from "@/store/gameStore.ts";
-import { ACTIVITY_ID } from "@/data/constants.ts";
+import { useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import GameBoard from '@/components/game/GameBoard.tsx';
+import PreWaveOverlay from '@/components/game/PreWaveOverlay.tsx';
+import { Button } from '@/components/ui/button.tsx';
+import { Input } from '@/components/ui/input.tsx';
+import { Heart } from 'lucide-react';
+import { useGameLogic } from '@/hooks/useGameLogic.ts';
+import useGameStore from '@/store/gameStore.ts';
+import { ACTIVITY_ID } from '@/data/constants.ts';
 
 export default function GamePage() {
   const [searchParams] = useSearchParams();
-  const config = searchParams.get("config");
+  const config = searchParams.get('config');
   const level = config ? JSON.parse(config) : null;
   const navigate = useNavigate();
   const { inventory } = useGameStore();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const equippedTowers = useMemo(
     () => inventory?.towers?.filter((t) => t.isUnlocked),
-    [inventory]
+    [inventory],
   );
 
   const { gameState, waveState, input, handleInput, startWave } = useGameLogic({
     level,
     equippedTowers,
     onGameOver: (result) => {
-      navigate("/result", {
+      navigate('/result', {
         state: {
           [`${ACTIVITY_ID}:config`]: level,
           ...result,
@@ -33,6 +34,16 @@ export default function GamePage() {
       });
     },
   });
+
+  useEffect(() => {
+    if (!waveState.isPreWave && inputRef.current) {
+      const timer = setTimeout(() => {
+        inputRef?.current?.focus();
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [waveState.isPreWave]);
 
   if (!level) {
     return (
@@ -50,7 +61,7 @@ export default function GamePage() {
     <div className="container p-4 space-y-4 w-screen">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <Heart className="text-red-500" />
+          <Heart className="text-red-500"/>
           <span>{gameState.lives}</span>
         </div>
         <div>
@@ -60,15 +71,16 @@ export default function GamePage() {
       </div>
 
       <div className="space-y-4">
-        <GameBoard gameState={gameState} lanes={level.lanes} />
+        <GameBoard gameState={gameState} lanes={level.lanes}/>
 
         <div className="space-y-4">
           <Input
+            ref={inputRef}
             value={input}
             onChange={handleInput}
             placeholder="Type the words..."
             className="w-full"
-            disabled={gameState.status !== "playing"}
+            disabled={gameState.status !== 'playing'}
           />
         </div>
       </div>
