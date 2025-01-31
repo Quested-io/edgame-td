@@ -52,10 +52,11 @@ export default function LevelForm({
         <Textarea
           id="words"
           value={level.words?.join(", ")}
-          onChange={(e) =>
+          onChange={(e) => setLevel({ ...level, words: [e.target.value] })}
+          onBlur={(e) =>
             setLevel({
               ...level,
-              words: e.target.value.split(",").map((w) => w.trim()),
+              words: e.target.value.replace(/\n/g, ',').split(',').map((w) => w.trim()).filter(Boolean),
             })
           }
           placeholder="Enter words separated by commas"
