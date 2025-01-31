@@ -15,6 +15,7 @@ export function useLevelForm() {
   const isValid = !!(
     level.name &&
     level.words?.length &&
+    level.words?.length >= 1 &&
     level.speed &&
     level.lives &&
     level.lanes &&
