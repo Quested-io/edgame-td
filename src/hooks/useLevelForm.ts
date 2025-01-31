@@ -16,6 +16,7 @@ export function useLevelForm() {
     level.name &&
     level.words?.length &&
     level.words?.length >= 1 &&
+    level.words?.every(word => word.trim().length > 0) &&
     level.speed &&
     level.lives &&
     level.lanes &&
