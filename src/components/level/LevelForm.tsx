@@ -123,6 +123,7 @@ export default function LevelForm({
       <div className="flex gap-2">
         <Button
           type="button"
+          variant="outline"
           className="flex-1"
           onClick={() => navigate("/levels")}
         >
@@ -130,7 +131,6 @@ export default function LevelForm({
         </Button>
         <Button
           type="button"
-          variant="outline"
           className="flex-1"
           disabled={!isValid}
           onClick={() => onPreview(level)}
