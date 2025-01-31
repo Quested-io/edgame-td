@@ -5,6 +5,7 @@ import { spawnWord } from "@/lib/wordUtils.ts";
 import { IPlayerTower } from "@/store/gameStore.ts";
 import { allTowers } from "@/data/allTowers.ts";
 import { applyTowerAbility, ABILITY_DURATION } from "@/lib/towerAbilities.ts";
+import { SPEED_MULTIPLIER } from '@/data/constants.ts';
 
 interface UseGameLogicProps {
   level: Level;
@@ -192,7 +193,7 @@ export function useGameLogic({
       setGameState((prev) => {
         const newWords = prev.activeWords.map((word) => ({
           ...word,
-          position: word.position + Math.sqrt(word.speed) / 100,
+          position: word.position + Math.sqrt(word.speed * SPEED_MULTIPLIER) / 100,
         }));
 
         const reachedEnd = newWords.some((word) => word.position >= 100);
