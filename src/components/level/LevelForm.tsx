@@ -7,6 +7,7 @@ import { Level } from "@/types/game.ts";
 import { useLevelForm } from "@/hooks/useLevelForm.ts";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ConfigureWordsInput } from '@/components/level/ConfigureWordsInput.tsx';
 
 interface LevelFormProps {
   onSubmit: (level: Level) => void;
@@ -47,21 +48,7 @@ export default function LevelForm({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="words">Words (comma-separated)</Label>
-        <Textarea
-          id="words"
-          value={level.words?.join(", ")}
-          onChange={(e) => setLevel({ ...level, words: [e.target.value] })}
-          onBlur={(e) =>
-            setLevel({
-              ...level,
-              words: e.target.value.replace(/\n/g, ',').split(',').map((w) => w.trim()).filter(Boolean),
-            })
-          }
-          placeholder="Enter words separated by commas"
-        />
-      </div>
+      <ConfigureWordsInput level={level} setLevel={setLevel} />
 
       <div className="space-y-2">
         <Label>Speed ({level.speed}x)</Label>
